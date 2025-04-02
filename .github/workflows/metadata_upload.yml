@@ -1,0 +1,57 @@
+name: Upload metadata to SFCC Instance
+env:
+    HOST: ${{vars.host}}
+    USER: ${{vars.user}}
+    PASS: ${{secrets.pass}}
+    CODE_VERSION: ${{vars.code_version}}
+    CARTRIDGES: ${{vars.cartridges}}
+    CLIENT_ID: ${{vars.client_id}}
+    CLIENT_SECRET: ${{secrets.client_secret}}
+    PASSPHRASE: ${{secrets.passphrase}}
+    P12: ${{vars.p12}}
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+        - 'metadata/meta/**'
+  pull_request:
+    paths:
+        - 'metadata/meta/**'
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: main
+    strategy:
+      matrix:
+        node-version: [12.21.0]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - name: 📦 Create a metadata package
+      run: zip -r $GITHUB_WORKSPACE/metadata/metadata.zip metadata/meta
+    - name: 🧩 Install deploy modules
+      run: npm install -g sfcc-ci
+    - name: 🔑 Login with credentials
+      run: sfcc-ci client:auth -D ${{ env.CLIENT_ID }} ${{ env.CLIENT_SECRET }}
+    - name: ✍️ Create dw.json
+      run: |
+        echo '{
+          "hostname": "${{ env.HOST }}",
+          "username": "${{ env.USER }}",
+          "password": "${{ env.PASS }}",
+          "code-version": "${{ env.CODE_VERSION }}",
+          "cartridge": ${{env.CARTRIDGES}},
+          "p12": "${{env.P12}}",
+          "passphrase": "${{env.PASSPHRASE}}"
+        }' > dw.json
+    - name: 🌬️ Upload metadata to instance
+      run: sfcc-ci instance:upload $GITHUB_WORKSPACE/metadata/metadata.zip
+    - name: ✈️ Import metadata to instance
+      run: sfcc-ci instance:import metadata.zip -s
