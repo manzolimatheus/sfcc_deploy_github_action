@@ -12,13 +12,13 @@ env:
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "develop" ]
     paths:
         - 'metadata/meta/**'
   pull_request:
     paths:
         - 'metadata/meta/**'
-    branches: [ "master" ]
+    branches: [ "develop" ]
 
 jobs:
   build:
