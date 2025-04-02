@@ -1,0 +1,59 @@
+name: Upload code to SFCC Instance
+env:
+    HOST: ${{vars.host}}
+    USER: ${{vars.user}}
+    PASS: ${{secrets.pass}}
+    CODE_VERSION: ${{vars.code_version}}
+    CARTRIDGES: ${{vars.cartridges}}
+    CLIENT_ID: ${{vars.client_id}}
+    CLIENT_SECRET: ${{secrets.client_secret}}
+    PASSPHRASE: ${{secrets.passphrase}}
+    P12: ${{vars.p12}}
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+        - 'cartridges/**'
+  pull_request:
+    paths:
+        - 'cartridges/**'
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: main
+    strategy:
+      matrix:
+        node-version: [12.21.0]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - name: 🧩 Install modules for deploy
+      run: npm install -g dwupload
+    - name: ✍️ Create dw.json
+      run: |
+        echo '{
+          "hostname": "${{ env.HOST }}",
+          "username": "${{ env.USER }}",
+          "password": "${{ env.PASS }}",
+          "code-version": "${{ env.CODE_VERSION }}",
+          "cartridge": ${{env.CARTRIDGES}},
+          "p12": "${{env.P12}}",
+          "passphrase": "${{env.PASSPHRASE}}"
+        }' > dw.json
+    - name: 🧩 Install Project dependencies
+      run: npm install
+    - name: 🖌️ Lint code
+      run: npm run lint
+    - name: 🤖 Run tests
+      run: npm test
+    - name: 📦 Create build
+      run: npm run build
+    - name: 🌬️ Upload Code
+      run: dwupload
